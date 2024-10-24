@@ -169,7 +169,7 @@ con_upper
 
 ## Discussion
 
-The normal approximation method was used in developing the confidence interval due to its conventional use when large sample approximations are valid. This method simply offers readable techniques for estimating the confidence intervals on standard errors estimated from samples. This approach facilitates accurate prediction of the fish population in ecological surveys hence playing an important role in species management and conservation.
+The normal approximation method was chosen for constructing the confidence interval because it is suitable when sample sizes are sufficiently large to meet normality assumptions. This method provides a straightforward way to calculate confidence intervals based on standard errors derived from sample data, making it effective for estimating fish populations in ecological studies.
 
 ## Conclusion
 
