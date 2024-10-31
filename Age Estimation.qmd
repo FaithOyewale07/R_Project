@@ -1,0 +1,300 @@
+---
+title: "Comparing Age Estimate from the Body Structures of Walleye (Yellow Pike) Sampled from Pymatuning Sanctuary"
+author: "Faith Oyewale OLABISI"
+toc: true
+toc-depth: 5
+toc-title: 'Table of Content'
+format: pdf
+editor: visual
+---
+
+## Introduction
+
+Kocovsky and Carline ([2000](https://fishr-core-team.github.io/fishR/teaching/posts/2022-12-19_AgeComp_WalleyePS/#ref-kocovskycarline_2000)) examined methods to estimate the age of the unexploited population of [Walleye](https://en.wikipedia.org/wiki/Walleye) in [Pymatuning Sanctuary](https://en.wikipedia.org/wiki/Pymatuning_State_Park_(Pennsylvania)) (PA). [Scales](https://en.wikipedia.org/wiki/Fish_scale), dorsal spines, and [otoliths](https://en.wikipedia.org/wiki/Otolith) were extracted from fish sampled in trap nets during the spawning run in March and April of 1997. Two readers independently examined each structure without knowledge of fish length or sex. Only consensus ages for each structure are recorded in [WalleyePS](https://fishr-core-team.github.io/FSAdata/reference/WalleyePS.html).^[1](https://fishr-core-team.github.io/fishR/teaching/posts/2022-12-19_AgeComp_WalleyePS/#fn1)^
+
+1.  Describe any apparent bias (or not) between age estimates from *scales* and *otoliths* from tabular, graphical, and statistical summaries.
+
+2.  Does the sex of the fish impact your descriptions of bias (or not) between *scales* and *otoliths*?
+
+3.  Repeat the previous two questions for *dorsal spines* and *otoliths*.
+
+## Data Collection and Importation
+
+```{r}
+#| message: false 
+#| warning: false  
+library(tidyverse)
+library(car) 
+library(knitr)
+```
+
+```{r}
+#| warning: false 
+#| message: false 
+
+walleye_data <- read_csv('data-raw/WalleyePS.csv')  
+walleye_data |>    
+  view()
+```
+
+### Insight into the Full Data
+
+```{r}
+walleye_data |>    
+  glimpse()
+```
+
+### Structure of the Data
+
+```{r}
+walleye_data |>    
+  str()
+```
+
+## Replace Missing Values with Zeros
+
+```{r}
+walleye_data <- walleye_data |>    
+  mutate(     
+    across(everything(), ~ replace_na(., 0))  
+    ) 
+walleye_data |>   
+  glimpse()
+```
+
+```{r}
+walleye_data |>    
+  group_by(sex) |>    
+  summarise(count = n()) |>    
+  kable(     
+    caption = 'Summary of the Walleye Gender Category'  
+    )
+```
+
+### Count the number of Groups in the Otolith
+
+```{r}
+walleye_data |>    
+  group_by(otolith) |>    
+  summarise(count = n()) |>  
+  kable(     
+    caption = 'Summary of the Walleye Otolith Category' 
+    )
+```
+
+### Count the number of Groups in the Scales
+
+```{r}
+walleye_data |>    
+  group_by(scale) |>   
+  summarise(count = n()) |>   
+  kable(   
+    caption = 'Summary of the walleye Scale Category'  
+    )
+```
+
+### Count the number of Groups in the Spines
+
+```{r}
+walleye_data |>    
+  group_by(spine) |>    
+  summarise(count = n()) |>    
+  kable(     
+    caption = 'Summary of the walleye Spine Category'  
+    )
+```
+
+### Distribution of the Data
+
+```{r}
+walleye_data |>    
+  ggplot(aes(scale))+   
+  geom_density(color = 'red', alpha = 0.8)+  
+  labs(    
+    x = 'Walleye Scales',    
+    y = 'Density of the Scales',    
+    title = 'Distribution of the Walleye {Yellow Pike} Scales',     
+    caption = '@FaithOyewaleOLABISI'  
+    ) +  
+  theme_minimal()
+```
+
+```{r}
+walleye_data |>   
+  ggplot(aes(spine))+  
+  geom_density(color = 'red', alpha = 0.8)+  
+  labs(   
+    x = 'Walleye Spines',    
+    y = 'Density of the Spines',   
+    title = 'Distribution of the Walleye {Yellow Pike} Spines',   
+    caption = '@FaithOyewaleOLABISI' 
+    )+  
+  theme_minimal()
+```
+
+```{r}
+walleye_data |>   
+  ggplot(aes(otolith))+
+  geom_density(color = 'red', alpha = 0.8)+
+  labs(    
+    x = 'Walleye Otoliths',  
+    y = 'Density of the Otoliths',    
+    title = 'Distribution of the Walleye {Yellow Pike} Otoliths',  
+    caption = '@FaithOyewaleOLABISI'  
+    )+  
+  theme_minimal()
+```
+
+## Summary Statistics for Scales and Otoliths
+
+```{r}
+walleye_data |>   
+  summarise(     
+    mean_scale = mean(scale),    
+    mean_otolith = mean(otolith),   
+    sd_scale = sd(scale),    
+    sd_otolith = sd(otolith)  
+    ) |>   
+  kable(  
+    caption = 'Summary Statistics for Scale and Otolith' 
+    )
+```
+
+```{r}
+walleye_data |>   
+  ggplot(aes(otolith, scale))+ 
+  geom_point(aes(color = sex), alpha = 0.8)+  
+  geom_smooth(method = lm, se = FALSE)+  
+  labs(    
+    x = 'Otolith Age Estimate',    
+    y = 'Scale Age Estimate',   
+    title = 'Comparision of Scale and Otolith Age Estimates',   
+    caption = '@FaithOyewaleOLABISI' 
+    )+
+  theme_minimal()
+```
+
+### Compare Age Estimate from Scales and Otoliths
+
+```{r}
+test_result <- t.test(walleye_data$scale, walleye_data$otolith)  
+
+test_result
+```
+
+```{r}
+p_value <- test_result$p.value
+
+p_value
+```
+
+### Invesitgate the Impact of the Fish Sex on the bias
+
+```{r}
+walleye_data |>    
+  group_by(sex) |>  
+  summarise(     
+    mean_scale = mean(scale),   
+    mean_otolith = mean(otolith),   
+    sd_scale = sd(scale),    
+    sd_otolith = sd(otolith) 
+    ) |> 
+  kable(
+    caption = 'Summary of the Age Estimate according to their Gender'
+  )
+```
+
+```{r}
+walleye_data |> 
+  ggplot(aes(otolith, scale))+
+  geom_point(aes(color = sex), alpha = 0.8)+
+  geom_smooth(method = lm, se = FALSE)+
+  facet_wrap(~sex)+
+  labs(
+    x = 'Otolith Age Estimate',
+    y = 'Scale Age Estimate',
+    title = 'Comparison of Scale and Otolith Age Estimate by Sex',
+    caption = '@FaithOyewaleOLABISI'
+  )+
+  theme_minimal()
+```
+
+### Compare the Age Estimate from Spines and Otoliths
+
+```{r}
+walleye_data |> 
+  summarise(
+    mean_spine = mean(spine),
+    mean_otolith = mean(otolith),
+    sd_spine = sd(spine),
+    sd_otolith = sd(otolith)
+  ) |> 
+  kable(
+    caption = 'Summary Statistics for Spine and Otolith'
+  )
+```
+
+```{r}
+walleye_data |> 
+  group_by(sex) |> 
+  summarise(
+    mean_spine = mean(spine),
+    mean_otolith = mean(otolith),
+    sd_spine = sd(spine),
+    sd_otolith = sd(otolith)
+  ) |> 
+  kable(
+    caption = 'Summary Statistics for Spine and Otolith by their Gender'
+  )
+```
+
+```{r}
+walleye_data |> 
+  ggplot(aes(spine, otolith))+
+  geom_point(aes(color = sex), alpha = 0.8)+
+  geom_smooth(method = lm, se = FALSE)+
+  labs(
+    x = 'Otolith Age Estimate',
+    y = 'Spine Age Estimate',
+    title = 'Comparison of Spine and Otolith Age Estimate',
+    caption = '@FaithOyewaleOLABISI'
+  )+
+  theme_minimal()
+```
+
+```{r}
+walleye_data |> 
+  ggplot(aes(spine, otolith))+
+  geom_point(aes(color = sex), alpha = 0.8)+
+  geom_smooth(method = lm, se = FALSE)+
+  facet_wrap(~sex)+
+  labs(
+    x = 'Otolith Age Estimate',
+    y = 'Spine Age Estimate',
+    title = 'Comparison of Spine and Otolith Age Estimate by Sex',
+    caption = '@FaithOyewaleOLABISI'
+  )+
+  theme_minimal()
+```
+
+```{r}
+test_result2 <- t.test(walleye_data$spine, walleye_data$otolith)
+
+test_result2
+```
+
+```{r}
+p_value2 <- test_result2$p.value
+
+p_value2
+```
+
+## Conclusion
+
+The statistical result of the age estimate between the spine and otolith shows a p value greater than 0.05 indicating that there is no significant difference between the age estimate of the spines and that of the otoliths. Whereas the p value of the test result between the age estimate of the scales and otoliths shows a p value of 0.035 indicating that there is a significant difference in the age estimate of scales and that of the otoliths. The sex of the fish does not impact any bias between the scales and the otoliths of Walleye.
+
+## References
+
+1.  Kocovsky, P. M., and R. F. Carline. (2000). [A comparison of methods for estimating ages of unexploited Walleyes](https://doi.org/10.1577/1548-8675(2000)020%3C1044:ACOMFE%3E2.0.CO;2). North American Journal of Fisheries Management 20:1044–1048.
+
+2.  Ogle, D. H. (2018). Introductory Fisheries Analyses with R. United States: CRC Press.
