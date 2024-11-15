@@ -1,0 +1,329 @@
+---
+title: "Effect of Potassium Fertilizer Rates on Soybean Trifoliate Concentration at Four different Location"
+author: "Faith Oyewale OLABISI"
+format: pdf
+editor: visual
+---
+
+## Introduction
+
+This study was conducted at four different locations in one year to assess the effect of potassium (K) fertilizer rates on soybean trifoliate K concentration at R4.
+
+Each study was a randomized complete block design (RCBD) with K rate as the only treatment factor with levels 0, 50, 100, and 150 lbs K20/ac.
+
+Note: The experiment work analysed in this project is a simulated experiment.
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(car)
+library(knitr)
+library(readxl)
+library(openxlsx)
+library(lme4)
+library(broom.mixed)
+library(ggthemes)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+```
+
+```{r}
+soy_data <- read_excel('data/SoybeanWorkshop.xlsx', sheet = 'R')
+
+view(soy_data)
+```
+
+## Data Insight and Exploration
+
+```{r}
+soy_data |> 
+  glimpse()
+```
+
+```{r}
+soy_data |> 
+  str()
+```
+
+```{r}
+soy_data |> 
+  filter(
+    Krate_lbac == 50 | Krate_lbac == 100
+  ) 
+```
+
+```{r}
+soy_data |> 
+  head(n = 10) |> 
+  kable(
+    caption = 'First Ten rows of the data'
+  )
+  
+```
+
+```{r}
+soy_data |> 
+  summary() |> 
+  kable(
+    caption = 'Summary of the data'
+  )
+```
+
+```{r}
+soy_data |> 
+  summarise(
+    mean_A1 = mean(A1.Kpct),
+    mean_O2 = mean(O2.Kpct),
+    mean_S1 = mean(S1.Kpct)
+  ) |> 
+  kable(
+    caption = 'Mean of the three Plots'
+  )
+```
+
+```{r}
+soy_data |> 
+  names()
+```
+
+## Data Preparation for Analysis
+
+In this chunk, we wrangled the data to best fit to perform data analysis and randomized complete block design
+
+```{r}
+soy_data_final <- soy_data |>
+  ## Convert the Krate from lbs/ac to Kg per hectare
+  ## Represent the plot between 100 and 400 with a value of 1 to 4
+  mutate(
+    krate_kgha = Krate_lbac*0.453592/0.4044686,
+    krate_kgha = round(krate_kgha, 0),
+    Rep = case_when(
+      Plot > 100 & Plot < 200 ~ 1,
+      Plot > 200 & Plot < 300 ~ 2,
+      Plot > 300 & Plot < 400 ~ 3,
+      Plot > 400 ~ 4
+    )
+  ) |>
+  ## Gather the location columns into a single column called 'location.k'
+  gather(
+    Location.k, K_pct, 
+    A1.Kpct, O2.Kpct, S1.Kpct, W1.Kpct
+  ) |> 
+  ## Separate the location.k column into two different column
+  ## called location and kname
+  separate(
+    Location.k,
+    into = c('Location', 'Kname')
+  ) |> 
+  ## select the columns that will be needed to perform the analysis
+  dplyr::select(
+    Location, Rep, krate_kgha, K_pct
+  )
+```
+
+```{r}
+soy_data_final |> 
+  ## Group the data by the location of the site.
+  group_by(
+    Location
+  )|> 
+  summarise(
+    meanK_pct = mean(K_pct),
+  )
+```
+
+## Data Visualization
+
+```{r}
+## Visualize the rate of potassium application on the various site
+soy_data_final |> 
+  ggplot(aes(as.factor(krate_kgha), K_pct))+
+  geom_boxplot()+
+  labs(
+     x = "Rate of Potassium {krate_kgha}",
+     y = 'K_pct',
+     caption = '@FaithOyewaleOLABISI'
+  )+
+  theme_minimal()
+```
+
+```{r}
+## Visualize the rate of potassium application on the various site or location
+soy_data_final |> 
+  ggplot(aes(as.factor(krate_kgha), K_pct))+
+  geom_boxplot(aes(fill = Location))+
+  theme_minimal()
+```
+
+```{r}
+soy_data_final |> 
+  ggplot(aes(as.factor(krate_kgha), K_pct))+
+  geom_boxplot(aes(fill = Location))+
+  facet_grid(.~Location)+
+  theme_minimal()
+```
+
+```{r}
+soy_data_final |> 
+  ggplot(aes(K_pct))+
+  geom_density(color = 'red')+
+  theme_minimal()
+```
+
+```{r}
+# Creating krate as categorical variable(factor) and other columns 
+# also to factor
+soy_data_final_1 <- soy_data_final |> 
+  mutate(
+    fkrate_kgha = factor(krate_kgha),
+    frep = factor(Rep),
+    Location = factor(Location)
+  ) |> 
+  filter(
+    Location == 'W1' | frep != '1'
+  )
+```
+
+## Randomized Complete Block Design (RCBD) Model
+
+```{r}
+# Changing type of matrix restriction
+options(contrasts = c('contr.sum', 'contr.poly'))
+
+# Running the Model
+soyk_mod <- lmer(K_pct ~ Location*fkrate_kgha + (1|Location/frep),
+                 data = soy_data_final_1)
+soyk_mod
+```
+
+```{r}
+Anova(soyk_mod, type = 3)
+```
+
+## Model Assumption
+
+```{r}
+## Extracting residual information
+
+soy_data_aug <- augment(soyk_mod)
+
+## Adding pearson standardized residuals
+
+soy_data_aug$.stdresid <- resid(soyk_mod, type = 'pearson',
+                                scale = 1)
+```
+
+### Within-group errors are iid \~ N(0, var2)
+
+On this plot, looking for:\
+- Spread around zero\
+- Homogeneity (no patterns)\
+- Outliers (\>3 or \<-3)
+
+```{r}
+soy_data_aug |> 
+  ggplot(aes(.fitted, .stdresid))+
+  geom_point(aes(color = Location))+
+  geom_hline(yintercept = c(-3, 0, 3), color = 'orange')+
+  geom_smooth()+
+  theme_minimal()
+```
+
+On this plot, looking for normality (points on top of line).
+
+```{r}
+soy_data_aug |> 
+  ggplot(aes(sample = .stdresid))+
+  stat_qq()+
+  stat_qq_line()+
+  theme_minimal()
+```
+
+### Random effects are iid \~ N(0,var1)
+
+On this plot, looking for normality.
+
+```{r}
+randeff_LocRep <- ranef(soyk_mod)[[1]]
+
+randeff_LocRep |> 
+  ggplot(aes(sample = '(intercept)'))+
+  stat_qq()+
+  stat_qq_line()+
+  theme_minimal()
+
+```
+
+```{r}
+randeff_rep <- ranef(soyk_mod)[[2]]
+
+randeff_rep |> 
+  ggplot(aes(sample = '(intercept)'))+
+  stat_qq()+
+  stat_qq_line()+
+  theme_minimal()
+```
+
+### Extracting model means and pairwise comparisons
+
+```{r}
+soyk_means_LocRate <- emmeans(soyk_mod, 
+                              ~ fkrate_kgha | Location)
+
+soyk_means_LocRate
+```
+
+```{r}
+soyk_pwc_LocRate<- cld(soyk_means_LocRate, 
+                       adjust="none",
+                       Letters=letters,
+                       reversed=T)
+
+soyk_pwc_LocRate <- soyk_pwc_LocRate |> 
+  as.data.frame()
+
+soyk_pwc_LocRate
+```
+
+```{r}
+soyk_pwc_LocRate |> 
+  ggplot(aes(fkrate_kgha, emmean))+
+  geom_bar(aes(fill = Location), color = 'black', 
+           stat = 'identity', alpha = 0.8)+
+  geom_text(aes(label = .group), nudge_y = 0.3, 
+            show.legend = F)+
+  labs(
+    x = 'K Rate (kg k2o/ha)',
+    y = 'Plant K (%)',
+    caption = '@Faith Oyewale OLABISI'
+  )+
+  theme_minimal()+
+  scale_fill_tableau()+
+  theme(legend.position = 'none')+
+  scale_y_continuous(limits = c(0, 4))+
+  facet_wrap(~Location)
+```
+
+```{r}
+soy_data_final_1 |> 
+  ggplot(aes(fkrate_kgha, K_pct))+
+  geom_boxplot(aes(fill = Location), color = 'black', alpha = .8)+
+  facet_wrap(~Location, scales = 'free')+
+  scale_y_continuous(limits = c(.5, 4))+
+  labs(
+    x = 'K Rate (kg K2O/ha)',
+    y = 'Plant K (%)',
+    caption = '@FaithOyewaleOLABISI'
+  )+
+  theme_minimal()+
+  scale_fill_tableau()+
+  theme(legend.position = 'none')
+
+
+```
+
+## Acknowledgement
+
+Kansas State University 2019 AGSA R Workshop - Introduction to R, taught by [\@leombastos](https://github.com/leombastos).
